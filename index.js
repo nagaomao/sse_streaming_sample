@@ -8,8 +8,9 @@ app.get('/', (req, res) => {
   res.send('index.html')
 })
 
-let clientId = 0
-let clients = {}
+const data = fs.readFileSync('./data/rate.dat', 'utf-8');
+const publishData = data.split("\n");
+
 app.get('/streaming', function(req, res) {
   req.socket.setTimeout(Number.MAX_VALUE);
   res.writeHead(200, {
@@ -19,32 +20,17 @@ app.get('/streaming', function(req, res) {
     "Access-Control-Allow-Origin": "*",
   });
   res.write('\n');
-  (clientId => {
-    clients[clientId] = {
-      'res': res,
-      'req': req,
-      'id': Number(req.headers["last-event-id"]) || 0
-    };
-    req.on('close', function() {
-      delete clients[clientId]
-    })
-  })(++clientId);
-})
-
-var data = fs.readFileSync('./data/rate.dat', 'utf-8');
-var publishData = data.split("\n");
-setInterval(() => {
-  for (let clientId in clients) {
+  var lastEventId = Number(req.headers["last-event-id"]) || 0;
+  setInterval(() => {
     for (var i = 0; i < 10; i++) {
-      clients[clientId].id++;
-      var id = clients[clientId].id;
-      console.log("id: " + id + ", data: " + publishData[id - 1]);
-      clients[clientId].res.write('id:' + id + '\n');
-      clients[clientId].res.write('data: ' + publishData[id - 1] + '\n');
-      clients[clientId].res.write('\n');
+      lastEventId++;
+      console.log("id: " + lastEventId + ", data: " + publishData[lastEventId - 1]);
+      res.write('id:' + lastEventId + '\n');
+      res.write('data: ' + publishData[lastEventId - 1] + '\n');
+      res.write('\n');
     }
-  }
-}, 5000);
+  }, 5000);
+});
 
 const PORT = 8080;
 app.listen(PORT, () => {
